@@ -1,10 +1,12 @@
 // pinataController.js
 const axios = require('axios');
 const FormData = require('form-data');
-const AdmZip = require('adm-zip')
-const fs = require('fs-extra')
-const tmp = require('tmp')
-const os = require('os')
+const fs = require('fs').promises;
+const fsSync = require('fs');
+const s3Controller = require('./s3Controller');
+const path = require('path')
+const unzipper = require('unzipper');
+
 
 
 require("dotenv").config();
@@ -45,44 +47,42 @@ exports.uploadFileToIPFS = async (req, res) => {
 };
 
 
-const downloadFile = async (url, dest) => {
-    const writer = fs.createWriteStream(dest);
-
-    try {
-        const response = await axios({
-            url,
-            method: 'GET',
-            responseType: 'stream',
-        });
-
-        response.data.pipe(writer);
-
-        return new Promise((resolve, reject) => {
-            writer.on('finish', resolve);
-            writer.on('error', reject);
-        });
-    } catch (error) {
-        throw new Error(`Error downloading file: ${error.message}`);
-    }
-};
-
-
-// Retrieve and process file from IPFS
 exports.retrieveFileFromIPFS = async (req, res) => {
-    const ipfsHash = req.params.ipfsHash; // Assume IPFS hash is passed in the request
-   const url = `https://gateway.pinata.cloud/ipfs/${ipfsHash}`;
- // const url = `https://gateway.pinata.cloud/ipfs/QmSfUzc1bhqPrb4pKhPn63K2iFk3wf8xrGAhEKENvrVJCw`; 
-    try {
-        const response = await axios.get(url, { responseType: 'arraybuffer' });
+    const ipfsHash = req.params.ipfsHash;
+    const url = `https://gateway.pinata.cloud/ipfs/QmeAg8FkSts5XNi7wca2S5XJKZBwmAjudo5HbZgLfT6S4W`;
+    const tempZipFilePath = path.join(__dirname, `${ipfsHash}.zip`);
+    const tempUnzipFolderPath = path.join(__dirname, `${ipfsHash}`);
+    const s3FolderKey = `${ipfsHash}`;
 
+    try {
+        // Step 1: Retrieve the zipped file from IPFS
+        const response = await axios.get(url, { responseType: 'arraybuffer' });
+        console.log(response.data)
         if (response.status === 200) {
-            // Set appropriate content type if known or default to binary/octet-stream
-            res.set('Content-Type', response.headers['content-type'] || 'application/octet-stream');
-            res.send(response.data);
+            // Step 2: Save the file temporarily on the server
+            await fs.writeFile(tempZipFilePath, response.data);
+
+            // Step 3: Unzip the file
+            await fsSync.createReadStream(tempZipFilePath)
+                .pipe(unzipper.Extract({ path: tempUnzipFolderPath }))
+                .promise();
+
+            // Step 4: Upload the unzipped contents to S3
+            console.log("Starting to upload...");
+            const uploadResults = await s3Controller.uploadDirectory(tempUnzipFolderPath, 'dece-git-temp', s3FolderKey); // Adjust bucket name and key
+            console.log('Files uploaded successfully');
+
+            // Step 5: Delete the local temporary files (both ZIP and unzipped)
+               await fs.unlink(tempZipFilePath);
+            await fs.rm(tempUnzipFolderPath, { recursive: true, force: true });
+
+            // Return the list of uploaded files to the frontend
+            res.json(uploadResults);
+
         } else {
             res.status(response.status).json({ error: 'Failed to retrieve file from IPFS' });
         }
     } catch (error) {
-        res.status(400).json({ error: `Failed to retrieve file from IPFS: ${error.message}` });
+        res.status(500).json({ error: `Failed to retrieve file from IPFS: ${error.message}` });
     }
 };
