@@ -70,8 +70,8 @@ const downloadFile = async (url, dest) => {
 // Retrieve and process file from IPFS
 exports.retrieveFileFromIPFS = async (req, res) => {
     const ipfsHash = req.params.ipfsHash; // Assume IPFS hash is passed in the request
-    const url = `https://gateway.pinata.cloud/ipfs/${ipfsHash}`;
-
+   const url = `https://gateway.pinata.cloud/ipfs/${ipfsHash}`;
+ // const url = `https://gateway.pinata.cloud/ipfs/QmSfUzc1bhqPrb4pKhPn63K2iFk3wf8xrGAhEKENvrVJCw`; 
     try {
         const response = await axios.get(url, { responseType: 'arraybuffer' });
 
@@ -83,7 +83,6 @@ exports.retrieveFileFromIPFS = async (req, res) => {
             res.status(response.status).json({ error: 'Failed to retrieve file from IPFS' });
         }
     } catch (error) {
-        res.status(500).json({ error: `Failed to retrieve file from IPFS: ${error.message}` });
+        res.status(400).json({ error: `Failed to retrieve file from IPFS: ${error.message}` });
     }
 };
-

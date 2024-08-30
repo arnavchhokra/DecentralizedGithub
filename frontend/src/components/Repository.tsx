@@ -15,7 +15,6 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { pinFileToIPFS } from "@/utils/pinata";
 import { get } from "https";
 import axios from "axios";
 
@@ -60,10 +59,10 @@ const Repository: React.FC = () => {
 
   const retrieval = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/retrieve/QmSfUzc1bhqPrb4pKhPn63K2iFk3wf8xrGAhEKENvrVJCw',{
-        method:'GET'
-      })
-      console.log(response)
+      const response = await axios.get('http://localhost:5000/api/retrieve/QmSfUzc1bhqPrb4pKhPn63K2iFk3wf8xrGAhEKENvrVJCw')
+   //  const url = `https://gateway.pinata.cloud/ipfs/QmSfUzc1bhqPrb4pKhPn63K2iFk3wf8xrGAhEKENvrVJCw`; 
+     //const response = await axios.get(url)
+     console.log(response)
     } catch (error: any) {
       console.error("Error retrieving:", error.message);
     }
