@@ -31,6 +31,16 @@ exports.uploadFile = async (filePath, bucketName, s3Key) => {
         const fileStream = fs.createReadStream(filePath);
 
         const params = {
+
+
+
+
+
+
+
+
+
+            
             Bucket: bucketName,
             Key: s3Key,
             Body: fileStream,

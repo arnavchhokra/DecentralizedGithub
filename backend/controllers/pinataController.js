@@ -48,11 +48,12 @@ exports.uploadFileToIPFS = async (req, res) => {
 
 
 exports.retrieveFileFromIPFS = async (req, res) => {
+    /*/
     const ipfsHash = req.params.ipfsHash;
     const url = `https://gateway.pinata.cloud/ipfs/QmeAg8FkSts5XNi7wca2S5XJKZBwmAjudo5HbZgLfT6S4W`;
     const tempZipFilePath = path.join(__dirname, `${ipfsHash}.zip`);
     const tempUnzipFolderPath = path.join(__dirname, `${ipfsHash}`);
-    const s3FolderKey = `${ipfsHash}`;
+  //  const s3FolderKey = `${ipfsHash}`;
 
     try {
         // Step 1: Retrieve the zipped file from IPFS
@@ -69,12 +70,13 @@ exports.retrieveFileFromIPFS = async (req, res) => {
 
             // Step 4: Upload the unzipped contents to S3
             console.log("Starting to upload...");
-            const uploadResults = await s3Controller.uploadDirectory(tempUnzipFolderPath, 'dece-git-temp', s3FolderKey); // Adjust bucket name and key
-            console.log('Files uploaded successfully');
+
+       //     const uploadResults = await s3Controller.uploadDirectory(tempUnzipFolderPath, 'dece-git-temp', s3FolderKey); // Adjust bucket name and key
+        //    console.log('Files uploaded successfully');
 
             // Step 5: Delete the local temporary files (both ZIP and unzipped)
-               await fs.unlink(tempZipFilePath);
-            await fs.rm(tempUnzipFolderPath, { recursive: true, force: true });
+            await fs.unlink(tempZipFilePath);
+      //      await fs.rm(tempUnzipFolderPath, { recursive: true, force: true });
 
             // Return the list of uploaded files to the frontend
             res.json(uploadResults);
@@ -84,5 +86,5 @@ exports.retrieveFileFromIPFS = async (req, res) => {
         }
     } catch (error) {
         res.status(500).json({ error: `Failed to retrieve file from IPFS: ${error.message}` });
-    }
+    } */
 };

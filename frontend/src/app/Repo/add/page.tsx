@@ -1,74 +1,95 @@
-"use client"; // Ensure this is present for client-side rendering
-
+"use client"
 import { Button } from '@/components/ui/button';
-import React, { useState } from 'react'; // Import useState
-import axios from 'axios';
+import React, { useEffect, useState } from 'react'; 
+const Ceramic = require("@ceramicnetwork/http-client").default;
 import Web3 from 'web3';
-import contractABI from '@/components/contractABI';
+import { ThreeIdConnect, EthereumAuthProvider } from '@3id/connect';
 
 
-function Page() { // Component name should start with an uppercase letter
-    const [nameu, setNamu] = useState(""); // Declare state
 
-    const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
+
+const CERAMIC_URL = "https://ceramic-clay.3boxlabs.com";
+const threeIdConnect = new ThreeIdConnect();
+
+
+
+const Page =() => { 
+    const [nameu, setNamu] = useState(""); 
+    const [selectedFile, setSelectedFile] = useState<File[]>([]);
     const web3 = new Web3((window as any).ethereum);
-    const contractAddress = "0xddEc11C12559a6cBCb1A2c845FF14530818129A4";
-    const contract = new web3.eth.Contract(contractABI, contractAddress);
+    const [ceramic, setCeramic] = useState<any>(null);
 
-    const handleUpload = async () => {
-        const accounts = await web3.eth.requestAccounts();
-        const account = accounts[0];
 
-      if (!selectedFile) return;
-      if (selectedFile.type !== "application/zip") {
-        alert("Please upload a ZIP file.");
-        return;
-      }
-    
-      const formData = new FormData();
-      formData.append("file", selectedFile);
-    
-      try {
-        const response = await fetch("http://localhost:5000/api/upload", {
-          method: "POST",
-          body: formData,
-        });
-    
-        if (!response.ok) {
-          throw new Error(`Failed to upload ${selectedFile.name}`);
-        }
-    
-        const result = await response.json();
-        console.log(`File ${selectedFile.name} uploaded successfully:`, result.ipfsHash);
-        // Handle the result as needssed (e.g., storing IPFS hash)
+    useEffect(() => {
+      const initCeramic = async () => {
         try {
-            await contract.methods.createRepository(nameu, result.ipfsHash).send({ from: account });
-            alert(" Repository created successfully");
+          const web3 = new Web3((window as any).ethereum);
+          const accounts = await web3.eth.requestAccounts();
+          const authProvider = new EthereumAuthProvider((window as any).ethereum, accounts[0]);
+          await threeIdConnect.connect(authProvider);
+          const didProvider = await threeIdConnect.getDidProvider();
+          
+          const ceramicInstance = new Ceramic(CERAMIC_URL);
+          await ceramicInstance.setDIDProvider(didProvider);
+          setCeramic(ceramicInstance);
         } catch (error) {
-            console.error("Error creating Repository:", error);
+          console.error('Error setting up Ceramic:', error);
         }
-      } catch (error) {
-        console.error(error instanceof Error ? error.message : 'An unknown error occurred');
-      }
+      };
+      initCeramic();
+    }, []);
+
+
+    const handleUpload =() => {
+      if (!selectedFile.length) return;
+      const formData = new FormData();
+      selectedFile.forEach((file) => {
+        formData.append("files", file, file.webkitRelativePath); // Preserve file structure
+      });
+
     };
   
-    const onFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-      const files = event.target.files;
-      if (files && files.length > 0) {
-        setSelectedFile(files[0]);
+
+     const onFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (files && files.length > 0) {
+      const fileArray = Array.from(files); 
+      setSelectedFile(fileArray);
+    }
+  };
+
+
+
+
+    const uploadToCeramic =() =>{
+     // const exis_doc = await ceramic.loadDocument(props.drawingProps.location.canvasProps.hash);
+    }
+
+    const createRepository =() =>{
+      try{
+        handleUpload()
+        uploadToCeramic()
+
+      }catch(e:any)
+      {
+        alert(`Error making repository`);
+        console.log(e.message)
       }
-    };
+    }
+
+
 
     return (
         <div style={{display:"flex", flexDirection:"column",padding:"20%"}}>
-            <input placeholder='Only Zip' type='file' style={{border:'1px solid grey', }}                       
+            <input type="file"         {...({ webkitdirectory: "true" } as any)}
+  multiple  style={{border:'1px solid grey', }}                       
             onChange={onFileChange} 
             ></input>
             <input placeholder='name' type='text' onChange={(e) => setNamu(e.target.value)}></input>
-            <Button onClick={handleUpload}style={{width:"80px"}}>Create</Button>
+            <Button onClick={createRepository}style={{width:"80px"}}>Create</Button>
         </div>
     );
 }
 
-export default Page; // Export the component with the corrected name
+export default Page;

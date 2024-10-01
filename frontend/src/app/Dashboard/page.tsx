@@ -21,18 +21,18 @@ const Page = () => {
 
   useEffect(() => {
     const fetchRepositories = async () => {
-      const web3 = new Web3(Web3.givenProvider || "http://localhost:8545");
-      const contract = new web3.eth.Contract(contractABI, contractAddress);
+ //     const web3 = new Web3(Web3.givenProvider || "http://localhost:8545");
+   //   const contract = new web3.eth.Contract(contractABI, contractAddress);
 
       try {
-        const accounts = await web3.eth.getAccounts();
-        const userAddress = accounts[0];
+    //    const accounts = await web3.eth.getAccounts();
+     //   const userAddress = accounts[0];
 
         // Fetch repository details
-        const repos: Repository[] = await contract.methods.getUserRepositoryIDs(userAddress).call();
+      //  const repos: Repository[] = await contract.methods.getUserRepositoryIDs(userAddress).call();
         
         // Directly use repos as Repository[] after type assertion
-        setRepositories(repos);
+      //  setRepositories(repos);
       } catch (error) {
         console.error("Error fetching repositories:", error);
       } finally {
