@@ -1,90 +1,145 @@
-// pinataController.js
+
 const axios = require('axios');
 const FormData = require('form-data');
-const fs = require('fs').promises;
-const fsSync = require('fs');
-const s3Controller = require('./s3Controller');
-const path = require('path')
-const unzipper = require('unzipper');
+const {upload} =   require("thirdweb/storage");
+const fs = require('fs');
+const path = require('path');
+const { ThirdwebStorage } = require("@thirdweb-dev/storage"); // Correctly import ThirdwebStorage
+//const { ThirdwebStorage } = require("@thirdweb-dev/sdk");
+
 
 
 
 require("dotenv").config();
-
+//const storage = new ThirdwebStorage();
 const API_KEY = process.env.PINATA_API_KEY;
 const API_SECRET = process.env.PINATA_API_SECRET;
 const API_URL = "https://api.pinata.cloud/pinning/pinFileToIPFS";
 
+
+const THIRD_CLIENT = process.env.THIRD_CLIENT;
+const THIRD_API = process.env.THIRD_API;
+const THIRD_URL = `https://${THIRD_CLIENT}.ipfscdn.io/ipfs/`;
+
+const store = new ThirdwebStorage({clientId:THIRD_CLIENT,secretKey:THIRD_API});
+
+/*
 exports.uploadFileToIPFS = async (req, res) => {
     try {
-        const file = req.file; // Access the file from req.file
-        if (!file) {
-            return res.status(400).json({ error: "No file uploaded" });
+        const files = req.files; // Access the file from req.file
+        if (!files || files.length === 0) {
+            return res.status(400).json({ error: "No files uploaded" });
         }
 
-        if (file.mimetype !== "application/zip") {
-            return res.status(400).send("Please upload a ZIP file.");
-        }
+
+        const ipfsHashes=[];
 
         const formData = new FormData();
-        formData.append('file', file.buffer, file.originalname); // Use file.buffer and file.originalname
 
-        const response = await axios.post(API_URL, formData, {
-            headers: {
-                'Content-Type': `multipart/form-data`,
-                'pinata_api_key': API_KEY,
-                'pinata_secret_api_key': API_SECRET,
-            },
-        });
+        for(const file of files) {
+            formData.append('file', file.buffer, { filename: file.originalname, filepath: file.originalname });
 
-        const ipfsHash = response.data.IpfsHash;
-        res.json({ ipfsHash });
+            const response = await axios.post(API_URL, formData, {
+                headers: {
+                    'Content-Type': `multipart/form-data`,
+                    'pinata_api_key': API_KEY,
+                    'pinata_secret_api_key': API_SECRET,
+                },
+            });
+
+            const ipfsHash = response.data.IpfsHash;
+            ipfsHashes.push({
+                ipfsHash,
+                message:'Folder and Files Succesfully Pinned'
+            });
+        }
+        res.json({ ipfsHashes });
+
+    } catch (error) {
+        console.error(`Failed to upload file to IPFS: ${error.message}`);
+        res.status(500).json({ error: "Failed to upload file to IPFS" });
+    }
+};*/
+/*
+exports.uploadFileToIPFS = async (req, res) => {
+    try {
+        const files = req.files; // Access the files from req.files (assuming multiple files)
+        if (!files || files.length === 0) {
+            return res.status(400).json({ error: "No files uploaded" });
+        }
+
+        const ipfsHashes = [];
+
+        for (const file of files) {
+            const uploadResult = await upload(file.buffer, {
+                uploadWithGatewayUrl: true, // You can use this option to get a gateway URL
+                filename: file.originalname, // Keep the original file name
+            });
+
+            ipfsHashes.push({
+                ipfsHash: uploadResult, // This is the IPFS CID returned by Thirdweb storage
+                message: 'Folder and Files Successfully Pinned'
+            });
+        }
+
+        res.json({ ipfsHashes });
 
     } catch (error) {
         console.error(`Failed to upload file to IPFS: ${error.message}`);
         res.status(500).json({ error: "Failed to upload file to IPFS" });
     }
 };
+*/
+/*
+exports.uploadFileToIPFS = async (req, res) => {
+    try {
+        const files = req.files;  // Assuming you are using a middleware like multer to handle file uploads
+        if (!files || files.length === 0) {
+            return res.status(400).json({ error: "No files uploaded" });
+        }
+
+        // Create an array of File objects from the uploaded files
+        const fileArray = files.map(file => new File([file.buffer], file.originalname));
+
+        // Upload the files to IPFS
+        const ipfsHashes = await upload({
+            THIRD_CLIENT,
+            files: fileArray,
+        });
+
+        // Return the IPFS hashes
+        res.json({ ipfsHashes });
+    } catch (error) {
+        console.log("Could not Upload File to IPFS: " + error);
+        return res.status(500).json({ error: "Failed to upload files to IPFS" });
+    }
+};*/
+
+
+exports.uploadFileToIPFS = async (req, res) => {
+    try {
+        const files = req.files;  // Assuming you are using a middleware like multer to handle file uploads
+        if (!files || files.length === 0) {
+            return res.status(400).json({ error: "No files uploaded" });
+        }
+
+        // Create an array of File objects from the uploaded files
+        const fileArray = files.map((file) => ({
+            path: file.originalname,
+            content: new Blob([file.buffer]), // Create a Blob from the file buffer
+        }));
+
+     //   const ipfsHashes = await store.uploadBatch(files);
+     const ipfsHashes = await store.uploadBatch(fileArray);
+        // Return the IPFS hashes
+        res.json({ ipfsHashes });
+    } catch (error) {
+        console.log("Could not Upload File to IPFS: " + error);
+        return res.status(500).json({ error: "Failed to upload files to IPFS" });
+    }
+};
 
 
 exports.retrieveFileFromIPFS = async (req, res) => {
-    /*/
-    const ipfsHash = req.params.ipfsHash;
-    const url = `https://gateway.pinata.cloud/ipfs/QmeAg8FkSts5XNi7wca2S5XJKZBwmAjudo5HbZgLfT6S4W`;
-    const tempZipFilePath = path.join(__dirname, `${ipfsHash}.zip`);
-    const tempUnzipFolderPath = path.join(__dirname, `${ipfsHash}`);
-  //  const s3FolderKey = `${ipfsHash}`;
 
-    try {
-        // Step 1: Retrieve the zipped file from IPFS
-        const response = await axios.get(url, { responseType: 'arraybuffer' });
-        console.log(response.data)
-        if (response.status === 200) {
-            // Step 2: Save the file temporarily on the server
-            await fs.writeFile(tempZipFilePath, response.data);
-
-            // Step 3: Unzip the file
-            await fsSync.createReadStream(tempZipFilePath)
-                .pipe(unzipper.Extract({ path: tempUnzipFolderPath }))
-                .promise();
-
-            // Step 4: Upload the unzipped contents to S3
-            console.log("Starting to upload...");
-
-       //     const uploadResults = await s3Controller.uploadDirectory(tempUnzipFolderPath, 'dece-git-temp', s3FolderKey); // Adjust bucket name and key
-        //    console.log('Files uploaded successfully');
-
-            // Step 5: Delete the local temporary files (both ZIP and unzipped)
-            await fs.unlink(tempZipFilePath);
-      //      await fs.rm(tempUnzipFolderPath, { recursive: true, force: true });
-
-            // Return the list of uploaded files to the frontend
-            res.json(uploadResults);
-
-        } else {
-            res.status(response.status).json({ error: 'Failed to retrieve file from IPFS' });
-        }
-    } catch (error) {
-        res.status(500).json({ error: `Failed to retrieve file from IPFS: ${error.message}` });
-    } */
 };

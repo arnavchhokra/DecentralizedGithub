@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@3id/connect": "^0.4.1",
+    "@ceramicnetwork/3id-did-resolver": "^6.4.0",
     "@ceramicnetwork/http-client": "^3.2.0",
     "@ceramicnetwork/stream-tile": "^3.2.0",
     "@ceramicstudio/idx": "^0.10.0",

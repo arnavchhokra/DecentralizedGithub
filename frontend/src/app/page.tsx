@@ -14,7 +14,7 @@ export default function Home() {
     const { account, networkId } = await MetamaskConnect();
     setAccount(account);
     setNetworkId(networkId);
-    if(account) 
+    if(account)
       {
         setText(account.slice(0,5));
         location.href = "/Dashboard";
