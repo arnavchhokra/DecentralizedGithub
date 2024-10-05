@@ -2,10 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import Web3 from 'web3';
-//import {useStorageUpload} from '@thirdweb-dev/react';
 import type { NextPage } from 'next';
-import { client } from '../client';
-import { upload } from "thirdweb/storage";
+import { create } from 'ipfs-http-client';
+import Moralis  from 'moralis';
 
 
 
@@ -14,8 +13,7 @@ const [web3, setWeb3] = useState<Web3 | null>(null);
 const [account, setAccount] = useState<string>("");
   const [selectedFile, setSelectedFile] = useState<File[]>([]);
   const [ceramic, setCeramic] = useState<any>(null);
-  //const {mutateAsync: upload} = useStorageUpload();
-
+  const [uri,setUri] = useState<string>("");
 
 
   useEffect(() => {
@@ -31,6 +29,8 @@ const [account, setAccount] = useState<string>("");
         },
       };
     }
+
+
 
     const loadCeramic = async () => {
       const { CeramicClient } = await import('@ceramicnetwork/http-client');
@@ -88,20 +88,6 @@ const [account, setAccount] = useState<string>("");
   },[account]);
 
 
-  const onFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    try {
-      const files = event.target.files;
-      if (files && files.length > 0) {
-        const fileArray = Array.from(files);
-        setSelectedFile(fileArray);
-      }
-      alert("File selected");
-    } catch (e:any) {
-      alert(`Error selecting file: ${e.message}`);
-    }
-  };
-
-
   const uploadToCeramic = async (fileData:any) => {
     const { TileDocument } = await  import('@ceramicnetwork/stream-tile'); // Import TileDocument
 
@@ -120,72 +106,90 @@ const [account, setAccount] = useState<string>("");
   };
 
   const handleUpload = async () => {
+    /*
     if (!ceramic) {
       alert("Please wait, Ceramic is still initializing.");
       return;
     }
 
     if (!selectedFile.length) return;
-    const formData = new FormData();
-        selectedFile.forEach(file => {
-        formData.append('files', file);
-    });
 
     try {
-      /*
-      for (const file of selectedFile) {
 
-        const fileHash = await computeSHA1Hash(file);
-        const fileData = {
-          file_path: file.webkitRelativePath,
-          fileType: file.type,
-          hash: fileHash
-        };
-        await uploadToCeramic(fileData);
-      }
-        */
       const fileData = {
         file_path: "12131",
         fileType: "EXE",
         hash: "1223131312"
       };
       await uploadToCeramic(fileData);
-      /*
-      const response = await fetch('http://localhost:5000/api/upload', {
-        method: 'POST',
-        body: formData,
-    });*/
-    const fileDataArray = selectedFile.map(file => ({
-      path: file.webkitRelativePath, // Retain the folder structure
-      file: file
-  }));
 
-        const response  = await upload({client, files: fileDataArray.map(item => item.file), uploadWithoutDirectory:false});
+
+
+    for await (const file of response) {
+        console.log(file);
+    }
+
         console.log(response);
         alert(response);
-
-
       alert("File(s) uploaded to Ceramic");
-
     } catch (e:any) {
       alert(`Error during file upload: ${e.message}`);
-    }
+    }*/
   };
+
+
+
+  const sendToMoralis = async(event: React.ChangeEvent<HTMLInputElement>) =>{
+
+    try {
+      // Get the files from the input event
+      const files = event.target.files;
+      const abi = [];
+      if (!files) return;
+
+      for (const file of files) {
+        const content = await file.text(); // Read the file content as text (base64 for images)
+        const path = file.webkitRelativePath || file.name; // Use relative path or just the filename
+        abi.push({
+          path,
+          content: btoa(content), // Encode to base64 for file content
+        });
+      }
+    await Moralis.start({
+        apiKey: '',
+    });
+
+    const response = await Moralis.EvmApi.ipfs.uploadFolder({
+        abi
+    });
+    console.log(response?.result);
+} catch (e) {
+    console.error(e);
+}
+
+  }
+
 
   return (
 <div style={{ display: "flex", flexDirection: "column", padding: "20%" }}>
-      <input
-        type="file"
-        {...({ webkitdirectory: "true" })}
-        multiple
-        onChange={onFileChange}
-        style={{ border: '1px solid grey' }}
-      />
+
       <input
         placeholder="name"
         type="text"
 
       />
+     <input
+        type="file"
+     {...({ webkitdirectory: "true" })}
+        multiple
+        {...({ mozdirectory : "true" })}
+        {...({ directory: "true" })}
+        onChange={sendToMoralis}
+        {...({} as React.InputHTMLAttributes<HTMLInputElement>)}
+
+        style={{ border: '1px solid grey' }}
+      />
+
       <button onClick={handleUpload}  style={{ width: "80px" }}>
         Create
       </button>
