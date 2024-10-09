@@ -3,17 +3,15 @@
 import { useEffect, useState } from 'react';
 import Web3 from 'web3';
 import type { NextPage } from 'next';
-import { create } from 'ipfs-http-client';
 import Moralis  from 'moralis';
-
-
+import CryptoJS from 'crypto-js';
 
 const App: NextPage =()=> {
 const [web3, setWeb3] = useState<Web3 | null>(null);
 const [account, setAccount] = useState<string>("");
-  const [selectedFile, setSelectedFile] = useState<File[]>([]);
-  const [ceramic, setCeramic] = useState<any>(null);
-  const [uri,setUri] = useState<string>("");
+const [selectedFile, setSelectedFile] = useState<File[]>([]);
+const [ceramic, setCeramic] = useState<any>(null);
+const [uri,setUri] = useState<string>("");
 
 
   useEffect(() => {
@@ -56,7 +54,6 @@ const [account, setAccount] = useState<string>("");
       });
 
       await did.authenticate();
-      //ceramic.did = did
       ceramic.setDID(did);
       console.log(did," is DID Provider");
 
@@ -87,22 +84,36 @@ const [account, setAccount] = useState<string>("");
     loadCeramic();
   },[account]);
 
+  const sendToDB = async()=>{
 
-  const uploadToCeramic = async (fileData:any) => {
+  }
+
+
+  const uploadToCeramic = async (response: any, fileHashes: string[], fileAbi: any[]) => {
     const { TileDocument } = await  import('@ceramicnetwork/stream-tile'); // Import TileDocument
-
     if (!ceramic) {
       alert('Ceramic instance not initialized');
       return;
     }
+    const docIds = [];
     try {
-      const doc = await TileDocument.create(ceramic, fileData, {
-        controllers: [ceramic.did.id]
+      for(var i=0 ; i<response.result.length ; i++) {
+        const ceramicEntry = {
+          path: fileAbi[i].path, // File path from ABI
+          fileHash: fileHashes[i], // File hash
+          ipfs: response?.result[i].path.split('/ipfs/')[1].split('/')[0], // CID from Moralis response
+        };
+        const doc = await TileDocument.create(ceramic, ceramicEntry, {
+          controllers: [ceramic.did.id],
       });
+      docIds.push(doc.id.toString());
       console.log('Document created with ID:', doc.id);
+    }
+
     } catch (error) {
       console.error('Error creating document on Ceramic:', error);
     }
+    return docIds;
   };
 
   const handleUpload = async () => {
@@ -140,29 +151,41 @@ const [account, setAccount] = useState<string>("");
 
 
   const sendToMoralis = async(event: React.ChangeEvent<HTMLInputElement>) =>{
-
     try {
       // Get the files from the input event
       const files = event.target.files;
       const abi = [];
+      const fileHash =[];
       if (!files) return;
 
       for (const file of files) {
         const content = await file.text(); // Read the file content as text (base64 for images)
         const path = file.webkitRelativePath || file.name; // Use relative path or just the filename
+        const shaHash:string = CryptoJS.SHA256(content).toString(CryptoJS.enc.Hex);
         abi.push({
           path,
           content: btoa(content), // Encode to base64 for file content
         });
+        fileHash.push(shaHash)
       }
+
     await Moralis.start({
-        apiKey: '',
+        apiKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJub25jZSI6IjcwYzYyZmRhLWVlNGYtNGViNC1hZjhiLWZmZTRhNjA2MDAyMiIsIm9yZ0lkIjoiMjcwMjA0IiwidXNlcklkIjoiMjc1MTM1IiwidHlwZUlkIjoiZWVjZWI1ZjEtZjlhNy00NmJkLTgzZGEtMjBhODc3ZTY3ZGU3IiwidHlwZSI6IlBST0pFQ1QiLCJpYXQiOjE3MjI5ODQyNjcsImV4cCI6NDg3ODc0NDI2N30.ctfDaAz-5cLh83nDOivI3A3QQtq86fMjuuECMUHTMWk',
     });
 
     const response = await Moralis.EvmApi.ipfs.uploadFolder({
         abi
     });
-    console.log(response?.result);
+
+
+
+    console.log(response?.toJSON());
+
+    for(var i=0;i<response?.result.length;i++){
+        console.log("ELement ",i," is ",response?.result[i].path,"and abi is", abi[i].path.split("/")[1]);
+    }
+   const docids = await uploadToCeramic(response,fileHash,abi);
+
 } catch (e) {
     console.error(e);
 }
